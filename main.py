@@ -56,30 +56,67 @@ def desenhar_borda():
     pygame.draw.rect(tela, cor_borda, [0, 0, espessura_borda, altura])  # Esquerda
     pygame.draw.rect(tela, cor_borda, [largura - espessura_borda, 0, espessura_borda, altura])  # Direita
 
-def selecionar_velocidade(tecla):
-    if tecla == pygame.K_DOWN:
-        velocidade_x = 0
-        velocidade_y = tamanho_quadrado
-    elif tecla == pygame.K_UP:
-        velocidade_x = 0
-        velocidade_y = -tamanho_quadrado
-    elif tecla == pygame.K_RIGHT:
-        velocidade_x = tamanho_quadrado
-        velocidade_y = 0
-    elif tecla == pygame.K_LEFT:
-        velocidade_x = -tamanho_quadrado
-        velocidade_y = 0
-    return velocidade_x, velocidade_y
+def selecionar_velocidade(tecla, velocidade_atual):
+    if tecla == pygame.K_DOWN and velocidade_atual != (0, -tamanho_quadrado):
+        return 0, tamanho_quadrado
+    elif tecla == pygame.K_UP and velocidade_atual != (0, tamanho_quadrado):
+        return 0, -tamanho_quadrado
+    elif tecla == pygame.K_RIGHT and velocidade_atual != (-tamanho_quadrado, 0):
+        return tamanho_quadrado, 0
+    elif tecla == pygame.K_LEFT and velocidade_atual != (tamanho_quadrado, 0):
+        return -tamanho_quadrado, 0
+    return velocidade_atual  # Retorna a mesma velocidade se a tecla pressionada é na direção oposta
+
+def carregar_recorde():
+    try:
+        with open("recorde.txt", "r") as file:
+            return int(file.read())
+    except:
+        return 0
+
+def salvar_recorde(novo_recorde):
+    with open("recorde.txt", "w") as file:
+        file.write(str(novo_recorde))
+
+def mostrar_tela_game_over(pontuacao, recorde):
+    tela.fill(preta)
+    fonte = pygame.font.SysFont("Helvetica", 50)
+    texto_game_over = fonte.render("GAME OVER", True, vermelha)
+    tela.blit(texto_game_over, [largura // 4, altura // 4])
+    
+    fonte_menor = pygame.font.SysFont("Helvetica", 25)
+    texto_pontuacao = fonte_menor.render(f"Sua Pontuação: {pontuacao}", True, branca)
+    tela.blit(texto_pontuacao, [largura // 4, altura // 2])
+    
+    texto_recorde = fonte_menor.render(f"Recorde: {recorde}", True, branca)
+    tela.blit(texto_recorde, [largura // 4, altura // 2 + 50])
+    
+    texto_restart = fonte_menor.render("Pressione Enter para jogar novamente", True, branca)
+    tela.blit(texto_restart, [largura // 8, altura // 2 + 100])
+    
+    pygame.display.update()
+    
+    esperar_entrada()
+
+def esperar_entrada():
+    while True:
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif evento.type == pygame.KEYDOWN:
+                if evento.key == pygame.K_RETURN:  # Verifica se a tecla pressionada é Enter
+                    rodar_jogo()
 
 def rodar_jogo():
     fim_jogo = False
     x = largura / 2
     y = altura / 2
-    velocidade_x = 0
-    velocidade_y = 0
+    velocidade_x, velocidade_y = 0, 0
     tamanho_cobra = 1
     segmentos_cobra = []
     comida_x, comida_y = gerar_comida()
+    recorde = carregar_recorde()
 
     while not fim_jogo:
         tela.blit(imagem_fundo, (0,0))
@@ -89,7 +126,7 @@ def rodar_jogo():
                 pygame.quit()
                 sys.exit()
             elif evento.type == pygame.KEYDOWN:
-                velocidade_x, velocidade_y = selecionar_velocidade(evento.key)
+                velocidade_x, velocidade_y = selecionar_velocidade(evento.key, (velocidade_x, velocidade_y))
         
         # Atualiza a posição da cobra
         x += velocidade_x
@@ -111,7 +148,11 @@ def rodar_jogo():
             y < espessura_borda or y >= altura - espessura_borda or
             nova_cabeca in segmentos_cobra[:-1]
         ):
-            fim_jogo = rodar_jogo()
+            fim_jogo = True
+            if tamanho_cobra - 1 > recorde:
+                recorde = tamanho_cobra - 1
+                salvar_recorde(recorde)
+            mostrar_tela_game_over(tamanho_cobra - 1, recorde)
 
         # Desenha a comida
         desenhar_comida(tamanho_quadrado, comida_x, comida_y)
